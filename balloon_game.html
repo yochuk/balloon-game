@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>打氣球小遊戲</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #87CEEB; /* 天空藍背景 */
+            overflow: hidden; /* 防止捲軸出現 */
+            font-family: 'Microsoft JhengHei', Arial, sans-serif;
+            user-select: none; /* 防止雙擊選取文字 */
+        }
+        #gameCanvas {
+            display: block;
+            margin: 0 auto;
+            background: linear-gradient(to bottom, #87CEEB 0%, #E0F7FA 100%);
+            cursor: crosshair; /* 鼠標變成十字準心 */
+        }
+        #ui-container {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+            text-shadow: 1px 1px 2px white;
+        }
+        #gameOverScreen {
+            display: none; /* 遊戲開始時隱藏 */
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 30px 50px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+        #gameOverScreen h1 { color: #FF4500; margin: 0 0 10px 0; }
+        #gameOverScreen p { font-size: 20px; }
+        button#restartBtn {
+            padding: 10px 25px;
+            font-size: 18px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button#restartBtn:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="ui-container">
+        分數: <span id="score">0</span> | 生命: <span id="lives">5</span>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="gameOverScreen">
+        <h1>遊戲結束!</h1>
+        <p>你的最終分數: <span id="finalScore">0</span></p>
+        <button id="restartBtn">再玩一次</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreEl = document.getElementById('score');
+        const livesEl = document.getElementById('lives');
+        const gameOverScreen = document.getElementById('gameOverScreen');
+        const finalScoreEl = document.getElementById('finalScore');
+        const restartBtn = document.getElementById('restartBtn');
+
+        // 設定畫布大小為視窗大小
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // 遊戲變數
+        let score = 0;
+        let lives = 5;
+        let gameActive = true;
+        let balloons = [];
+        let spawnRate = 60; // 產生氣球的頻率 (數字越小越快)
+        let frameCount = 0;
+        let baseSpeed = 2; // 基礎速度
+
+        // 氣球顏色庫
+        const colors = ['#FF3F3F', '#FFD700', '#32CD32', '#1E90FF', '#FF69B4', '#FFA500', '#9370DB'];
+
+        // 氣球類別
+        class Balloon {
+            constructor() {
+                this.radius = Math.random() * 25 + 25; // 半徑 25~50
+                this.x = Math.random() * (canvas.width - this.radius * 2) + this.radius;
+                this.y = canvas.height + this.radius;
+                this.color = colors[Math.floor(Math.random() * colors.length)];
+                // 速度隨分數增加而變快
+                this.speed = (Math.random() * 1.5 + 1) + (baseSpeed * (score / 50)); 
+                this.popped = false;
+            }
+
+            draw() {
+                if (this.popped) return;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                
+                // 畫氣球繩子
+                ctx.beginPath();
+                ctx.moveTo(this.x, this.y + this.radius);
+                ctx.lineTo(this.x, this.y + this.radius + 30);
+                ctx.strokeStyle = 'rgba(100,100,100,0.5)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                ctx.closePath();
+                
+                // 畫高光讓它看起來立體點
+                ctx.beginPath();
+                ctx.arc(this.x - this.radius/3, this.y - this.radius/3, this.radius/4, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255,255,255,0.4)';
+                ctx.fill();
+                ctx.closePath();
+            }
+
+            update() {
+                this.y -= this.speed;
+            }
+        }
+
+        function spawnBalloon() {
+            // 隨著分數提高，氣球出現得更快
+            let current SpawnRate = spawnRate - Math.floor(score / 10);
+            if (currentSpawnRate < 20) currentSpawnRate = 20; // 最快頻率限制
+
+            if (frameCount % currentSpawnRate === 0) {
+                balloons.push(new Balloon());
+            }
+        }
+
+        function handleBalloons() {
+            for (let i = balloons.length - 1; i >= 0; i--) {
+                balloons[i].update();
+                balloons[i].draw();
+
+                // 檢查氣球是否飛出頂部
+                if (balloons[i].y + balloons[i].radius < 0) {
+                    balloons.splice(i, 1);
+                    lives--;
+                    livesEl.textContent = lives;
+                    if (lives <= 0) {
+                        endGame();
+                    }
+                }
+            }
+        }
+
+        function endGame() {
+            gameActive = false;
+            gameOverScreen.style.display = 'block';
+            finalScoreEl.textContent = score;
+        }
+
+        function restartGame() {
+            score = 0;
+            lives = 5;
+            balloons = [];
+            gameActive = true;
+            scoreEl.textContent = score;
+            livesEl.textContent = lives;
+            gameOverScreen.style.display = 'none';
+            frameCount = 0;
+            animate();
+        }
+
+        // 點擊偵測
+        canvas.addEventListener('click', function(e) {
+            if (!gameActive) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const clickY = e.clientY - rect.top;
+
+            for (let i = balloons.length - 1; i >= 0; i--) {
+                let b = balloons[i];
+                // 計算點擊位置與氣球中心的距離 (畢氏定理)
+                let distance = Math.sqrt((clickX - b.x) ** 2 + (clickY - b.y) ** 2);
+                
+                if (distance < b.radius) {
+                    // 點到了!
+                    balloons.splice(i, 1);
+                    score++;
+                    scoreEl.textContent = score;
+                    // 這裡可以加入「波」一聲的音效
+                    break; // 一次點擊只破一個
+                }
+            }
+        });
+
+        restartBtn.addEventListener('click', restartGame);
+
+        // 遊戲主迴圈
+        function animate() {
+            if (!gameActive) return;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            frameCount++;
+            spawnBalloon();
+            handleBalloons();
+            requestAnimationFrame(animate);
+        }
+
+        // 開始遊戲
+        animate();
+
+    </script>
+</body>
+</html>
